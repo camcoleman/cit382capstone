@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import TokenList from "./components/TokenList";
 import TokenDetail from "./components/TokenDetail";
 
+
 const starterTokens = [
   {
     id: 1,
@@ -54,38 +55,20 @@ const starterTokens = [
       { id: "slashing", label: "Understand slashing conditions", done: false },
       { id: "supply", label: "Review supply schedule and unlocks", done: false }
     ]
-  },
-  {
-    id: 3,
-    name: "Arbitrum",
-    ticker: "ARB",
-    chain: "Ethereum",
-    category: "L2",
-    thesis: [
-      "Scales Ethereum using optimistic rollups",
-      "Strong ecosystem adoption and developer traction"
-    ],
-    risks: [
-      "Sequencer decentralization timeline uncertainty",
-      "Competition from other rollup ecosystems"
-    ],
-    keyMetrics: {
-      fdv: 0,
-      mcap: 0,
-      tvl: 0,
-      volume24h: 0
-    },
-    checklist: [
-      { id: "dao", label: "Review DAO treasury and governance", done: false },
-      { id: "usage", label: "Analyze usage and fee trends", done: false },
-      { id: "tech", label: "Understand fraud proof roadmap", done: false }
-    ]
   }
 ];
 
 function App() {
+  // This state lives in App.jsx
+  const [view, setView] = useState("list");
+
+  // This state lives in App.jsx
   const [tokens, setTokens] = useState(starterTokens);
+
+  // This state lives in App.jsx
   const [selectedTokenId, setSelectedTokenId] = useState(null);
+
+  // This state lives in App.jsx
   const [searchQuery, setSearchQuery] = useState("");
 
   const selectedToken = useMemo(() => {
@@ -102,44 +85,84 @@ function App() {
   }, [tokens, searchQuery]);
 
   function toggleChecklist(tokenId, itemId) {
-    setTokens(prevTokens =>
-      prevTokens.map(token => {
-        if (token.id !== tokenId) return token;
-        return {
-          ...token,
-          checklist: token.checklist.map(item =>
-            item.id === itemId
-              ? { ...item, done: !item.done }
-              : item
-          )
-        };
-      })
+    setTokens(prev =>
+      prev.map(token =>
+        token.id === tokenId
+          ? {
+              ...token,
+              checklist: token.checklist.map(item =>
+                item.id === itemId
+                  ? { ...item, done: !item.done }
+                  : item
+              )
+            }
+          : token
+      )
     );
   }
 
   return (
     <div className="app-container">
       <h1>Token Research Explorer</h1>
-      <p>
-        A lightweight research dashboard for a college blockchain group.
-      </p>
+      <p>A lightweight research dashboard for a college blockchain group.</p>
 
-      {!selectedToken && (
+      {/* This variable controls which part of the UI is visible */}
+      {/* view controls whether the list view or detail view is shown */}
+
+      <button onClick={() => setView("list")}>List</button>
+      <button onClick={() => setView("detail")}>Detail</button>
+
+      {view === "list" && (
         <TokenList
-          tokens={filteredTokens}
-          searchQuery={searchQuery}
-          setSearchQuery={setSearchQuery}
-          onSelectToken={setSelectedTokenId}
-        />
+        tokens={filteredTokens}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSelectToken={(id) => {
+          setSelectedTokenId(id);
+          setView("detail");
+        }}
+      />
+      
       )}
 
-      {selectedToken && (
+      {view === "detail" && selectedToken && (
         <TokenDetail
           token={selectedToken}
-          onBack={() => setSelectedTokenId(null)}
+          onBack={() => {
+            setSelectedTokenId(null);
+            setView("list");
+          }}
           onToggleChecklist={toggleChecklist}
         />
       )}
+
+      {/* When the view changes, this data persists: */}
+      {/* tokens, searchQuery, selectedTokenId, checklist state */}
+
+      {/*
+      Observations:
+      - Data that persisted across views:
+        tokens, searchQuery, selectedTokenId, checklist state
+      - Data that reset when views changed:
+        any local state inside view components
+      */}
+
+      {/*
+      Possible future side effects in this app:
+      - Load saved token research when the app opens
+      - Save checklist progress when token data changes
+      - Sync token data from an external source
+      */}
+
+      {/*
+      Reflection:
+      - One thing that surprised me about switching views:
+        state in App.jsx persists even when views unmount
+      - One thing that felt confusing:
+        UI resets when state is moved into a view component
+      - One question I have about how React manages data:
+        when React decides to preserve versus recreate state
+      */}
     </div>
   );
 }
