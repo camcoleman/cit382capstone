@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import TokenList from "./components/TokenList";
 import TokenDetail from "./components/TokenDetail";
+import AISummaryBox from "./components/AISummaryBox";
+import NewTokenForm from "./components/NewTokenForm";
 
+const TOKENS_STORAGE_KEY = "capstone_tokens_v1";
+const RESEARCH_STORAGE_KEY = "capstone_research_v1";
 
 const starterTokens = [
   {
@@ -59,18 +63,52 @@ const starterTokens = [
 ];
 
 function App() {
-  // This state lives in App.jsx
+  // 1) State first
   const [view, setView] = useState("list");
 
-  // This state lives in App.jsx
-  const [tokens, setTokens] = useState(starterTokens);
+  const [tokens, setTokens] = useState(() => {
+    try {
+      const raw = localStorage.getItem(TOKENS_STORAGE_KEY);
+      if (!raw) return starterTokens;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : starterTokens;
+    } catch {
+      return starterTokens;
+    }
+  });
 
-  // This state lives in App.jsx
   const [selectedTokenId, setSelectedTokenId] = useState(null);
-
-  // This state lives in App.jsx
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [researchByTokenId, setResearchByTokenId] = useState(() => {
+    try {
+      const raw = localStorage.getItem(RESEARCH_STORAGE_KEY);
+      if (!raw) return {};
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // 2) Effects after state
+  useEffect(() => {
+    try {
+      localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
+    } catch {
+      // ignore
+    }
+  }, [tokens]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(RESEARCH_STORAGE_KEY, JSON.stringify(researchByTokenId));
+    } catch {
+      // ignore
+    }
+  }, [researchByTokenId]);
+
+  // 3) Memos after effects
   const selectedToken = useMemo(() => {
     return tokens.find(t => t.id === selectedTokenId) || null;
   }, [tokens, selectedTokenId]);
@@ -84,6 +122,7 @@ function App() {
     );
   }, [tokens, searchQuery]);
 
+  // 4) Functions
   function toggleChecklist(tokenId, itemId) {
     setTokens(prev =>
       prev.map(token =>
@@ -91,9 +130,7 @@ function App() {
           ? {
               ...token,
               checklist: token.checklist.map(item =>
-                item.id === itemId
-                  ? { ...item, done: !item.done }
-                  : item
+                item.id === itemId ? { ...item, done: !item.done } : item
               )
             }
           : token
@@ -101,68 +138,116 @@ function App() {
     );
   }
 
+  function saveResearchOutput(tokenId, text) {
+    setResearchByTokenId(prev => ({
+      ...prev,
+      [tokenId]: text
+    }));
+  }
+
+  function addToken(newTokenFields) {
+    setTokens(prev => {
+      const nextId = prev.length > 0 ? Math.max(...prev.map(t => t.id)) + 1 : 1;
+
+      const newToken = {
+        id: nextId,
+        ...newTokenFields,
+        thesis: [],
+        risks: [],
+        keyMetrics: { fdv: 0, mcap: 0, tvl: 0, volume24h: 0 },
+        checklist: [
+          { id: "tokenomics", label: "Review tokenomics and emissions", done: false },
+          { id: "competition", label: "Compare to competitors", done: false },
+          { id: "catalysts", label: "List catalysts and risk windows", done: false }
+        ]
+      };
+
+      return [newToken, ...prev];
+    });
+
+    setView("list");
+  }
+
+  function resetDemoData() {
+    try {
+      localStorage.removeItem(TOKENS_STORAGE_KEY);
+      localStorage.removeItem(RESEARCH_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+
+    setTokens(starterTokens);
+    setResearchByTokenId({});
+    setSelectedTokenId(null);
+    setSearchQuery("");
+    setView("list");
+  }
+
+  const savedOutput = selectedToken ? (researchByTokenId[selectedToken.id] || "") : "";
+
+  // 5) Return last
   return (
     <div className="app-container">
-      <h1>Token Research Explorer</h1>
-      <p>A lightweight research dashboard for a college blockchain group.</p>
+      <div className="app-shell">
+        <div className="main-column">
+          <div className="row">
+            <div>
+              <h1>Token Research Explorer</h1>
+              <p>A lightweight research dashboard for a college blockchain group.</p>
+            </div>
 
-      {/* This variable controls which part of the UI is visible */}
-      {/* view controls whether the list view or detail view is shown */}
+            <div className="row">
+              <button onClick={() => setView("new")}>New Token</button>
+              <button onClick={resetDemoData}>Reset</button>
+            </div>
+          </div>
 
-      <button onClick={() => setView("list")}>List</button>
-      <button onClick={() => setView("detail")}>Detail</button>
+          {view === "new" && (
+            <NewTokenForm
+              onSave={addToken}
+              onCancel={() => setView("list")}
+            />
+          )}
 
-      {view === "list" && (
-        <TokenList
-        tokens={filteredTokens}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-        onSelectToken={(id) => {
-          setSelectedTokenId(id);
-          setView("detail");
-        }}
-      />
-      
-      )}
+          {view === "list" && (
+            <TokenList
+              tokens={filteredTokens}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              onSelectToken={(id) => {
+                setSelectedTokenId(id);
+                setView("detail");
+              }}
+            />
+          )}
 
-      {view === "detail" && selectedToken && (
-        <TokenDetail
-          token={selectedToken}
-          onBack={() => {
-            setSelectedTokenId(null);
-            setView("list");
-          }}
-          onToggleChecklist={toggleChecklist}
-        />
-      )}
+          {view === "detail" && selectedToken && (
+            <TokenDetail
+              token={selectedToken}
+              onBack={() => {
+                setSelectedTokenId(null);
+                setView("list");
+              }}
+              onToggleChecklist={toggleChecklist}
+            />
+          )}
 
-      {/* When the view changes, this data persists: */}
-      {/* tokens, searchQuery, selectedTokenId, checklist state */}
+          {view === "detail" && !selectedToken && (
+            <div className="card section">
+              <p className="muted">No token selected. Go back to the list.</p>
+              <button onClick={() => setView("list")}>Back to List</button>
+            </div>
+          )}
+        </div>
 
-      {/*
-      Observations:
-      - Data that persisted across views:
-        tokens, searchQuery, selectedTokenId, checklist state
-      - Data that reset when views changed:
-        any local state inside view components
-      */}
-
-      {/*
-      Possible future side effects in this app:
-      - Load saved token research when the app opens
-      - Save checklist progress when token data changes
-      - Sync token data from an external source
-      */}
-
-      {/*
-      Reflection:
-      - One thing that surprised me about switching views:
-        state in App.jsx persists even when views unmount
-      - One thing that felt confusing:
-        UI resets when state is moved into a view component
-      - One question I have about how React manages data:
-        when React decides to preserve versus recreate state
-      */}
+        <div className="side-column">
+          <AISummaryBox
+            token={selectedToken}
+            savedOutput={savedOutput}
+            onSaveOutput={saveResearchOutput}
+          />
+        </div>
+      </div>
     </div>
   );
 }
