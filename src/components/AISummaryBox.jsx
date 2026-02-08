@@ -95,14 +95,20 @@ D) Source List
 Provide a clean list of sources grouped by: Official, On-chain/Data, Third-party Research, and News.`;
 }
 
-function AISummaryBox({ token }) {
+function AISummaryBox({ token, savedOutput, onSaveOutput }) {
+  const [activeTab, setActiveTab] = useState("output");
+  const [draftOutput, setDraftOutput] = useState(savedOutput || "");
   const [copied, setCopied] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
+
+  const tokenName = token ? token.name : "Unknown";
 
   const promptText = useMemo(() => {
-    const name = token ? token.name : "Unknown";
-    return buildDeepResearchPrompt(name);
-  }, [token]);
+    return buildDeepResearchPrompt(tokenName);
+  }, [tokenName]);
+
+  useMemo(() => {
+    setDraftOutput(savedOutput || "");
+  }, [savedOutput, token?.id]);
 
   async function copyPrompt() {
     try {
@@ -115,55 +121,86 @@ function AISummaryBox({ token }) {
     }
   }
 
-  const title = token ? `${token.name} AI Research` : "AI Research";
+  function save() {
+    if (!token) return;
+    onSaveOutput(token.id, draftOutput);
+  }
+
+  function clear() {
+    setDraftOutput("");
+    if (!token) return;
+    onSaveOutput(token.id, "");
+  }
 
   return (
     <div className="ai-panel card">
       <div className="ai-panel-header">
         <div>
-          <div className="ai-title">{title}</div>
+          <div className="ai-title">
+            {token ? `${token.name} Research` : "Research"}
+          </div>
           <div className="muted">
-            Copy the research prompt. The full template is hidden to reduce clutter.
+            Copy the prompt, run it, paste the answer, and save it per token.
           </div>
         </div>
       </div>
 
-      {!token && (
-        <div className="ai-hint card section">
-          <div className="muted">
-            Select a token to generate a token specific research prompt.
+      <div className="ai-tabs">
+        <button
+          className={activeTab === "output" ? "ai-tab ai-tab-active" : "ai-tab"}
+          onClick={() => setActiveTab("output")}
+        >
+          AI Output
+        </button>
+
+        <button
+          className={activeTab === "prompt" ? "ai-tab ai-tab-active" : "ai-tab"}
+          onClick={() => setActiveTab("prompt")}
+        >
+          Prompt
+        </button>
+      </div>
+
+      {activeTab === "output" && (
+        <>
+          {!token && (
+            <div className="card section">
+              <div className="muted">
+                Select a token to save research output.
+              </div>
+            </div>
+          )}
+
+          <div className="ai-actions">
+            <button onClick={save} disabled={!token}>Save</button>
+            <button onClick={clear} disabled={!token}>Clear</button>
           </div>
-        </div>
+
+          <textarea
+            className="ai-textarea"
+            placeholder="Paste the AI answer here. It will be saved for the selected token."
+            value={draftOutput}
+            onChange={(e) => setDraftOutput(e.target.value)}
+            spellCheck={false}
+          />
+        </>
       )}
 
-      <div className="ai-actions">
-        <button onClick={copyPrompt}>
-          {copied ? "Copied" : "Copy Prompt"}
-        </button>
-
-        <button onClick={() => setShowPreview(prev => !prev)}>
-          {showPreview ? "Hide Preview" : "Show Preview"}
-        </button>
-      </div>
-
-      {showPreview && (
-        <div className="card section">
-          <div className="muted" style={{ marginBottom: 8 }}>
-            Preview (first 350 characters):
+      {activeTab === "prompt" && (
+        <>
+          <div className="ai-actions">
+            <button onClick={copyPrompt}>
+              {copied ? "Copied" : "Copy Prompt"}
+            </button>
           </div>
-          <div
-            className="muted"
-            style={{
-              fontFamily:
-                'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-              fontSize: 12,
-              whiteSpace: "pre-wrap",
-              lineHeight: 1.35
-            }}
-          >
-            {promptText.slice(0, 350)}…
-          </div>
-        </div>
+
+          <textarea
+            className="ai-textarea"
+            value={promptText}
+            readOnly
+            spellCheck={false}
+          />
+        </>
       )}
     </div>
   );

@@ -1,11 +1,8 @@
-import { useMemo, useState, useEffect } from "react";
-import TokenList from "./components/TokenList";
-import TokenDetail from "./components/TokenDetail";
+import { useEffect, useMemo, useState } from "react";
 import AISummaryBox from "./components/AISummaryBox";
-import NewTokenForm from "./components/NewTokenForm";
+import TokenListView from "./components/TokenListView";
+import TokenDetailView from "./components/TokenDetailView";
 
-const TOKENS_STORAGE_KEY = "capstone_tokens_v1";
-const RESEARCH_STORAGE_KEY = "capstone_research_v1";
 
 const starterTokens = [
   {
@@ -62,53 +59,29 @@ const starterTokens = [
   }
 ];
 
+const STORAGE_KEY = "cit382_researchByTokenId_v1";
+
+function safeLoadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object") return parsed;
+    return {};
+  } catch {
+    return {};
+  }
+}
+
 function App() {
-  // 1) State first
   const [view, setView] = useState("list");
-
-  const [tokens, setTokens] = useState(() => {
-    try {
-      const raw = localStorage.getItem(TOKENS_STORAGE_KEY);
-      if (!raw) return starterTokens;
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : starterTokens;
-    } catch {
-      return starterTokens;
-    }
-  });
-
+  const [tokens, setTokens] = useState(starterTokens);
   const [selectedTokenId, setSelectedTokenId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [researchByTokenId, setResearchByTokenId] = useState(() => {
-    try {
-      const raw = localStorage.getItem(RESEARCH_STORAGE_KEY);
-      if (!raw) return {};
-      const parsed = JSON.parse(raw);
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  });
+  // Shared state: saved AI output per token id
+  const [researchByTokenId, setResearchByTokenId] = useState(() => safeLoadFromStorage());
 
-  // 2) Effects after state
-  useEffect(() => {
-    try {
-      localStorage.setItem(TOKENS_STORAGE_KEY, JSON.stringify(tokens));
-    } catch {
-      // ignore
-    }
-  }, [tokens]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(RESEARCH_STORAGE_KEY, JSON.stringify(researchByTokenId));
-    } catch {
-      // ignore
-    }
-  }, [researchByTokenId]);
-
-  // 3) Memos after effects
   const selectedToken = useMemo(() => {
     return tokens.find(t => t.id === selectedTokenId) || null;
   }, [tokens, selectedTokenId]);
@@ -122,7 +95,6 @@ function App() {
     );
   }, [tokens, searchQuery]);
 
-  // 4) Functions
   function toggleChecklist(tokenId, itemId) {
     setTokens(prev =>
       prev.map(token =>
@@ -145,72 +117,27 @@ function App() {
     }));
   }
 
-  function addToken(newTokenFields) {
-    setTokens(prev => {
-      const nextId = prev.length > 0 ? Math.max(...prev.map(t => t.id)) + 1 : 1;
-
-      const newToken = {
-        id: nextId,
-        ...newTokenFields,
-        thesis: [],
-        risks: [],
-        keyMetrics: { fdv: 0, mcap: 0, tvl: 0, volume24h: 0 },
-        checklist: [
-          { id: "tokenomics", label: "Review tokenomics and emissions", done: false },
-          { id: "competition", label: "Compare to competitors", done: false },
-          { id: "catalysts", label: "List catalysts and risk windows", done: false }
-        ]
-      };
-
-      return [newToken, ...prev];
-    });
-
-    setView("list");
-  }
-
-  function resetDemoData() {
-    try {
-      localStorage.removeItem(TOKENS_STORAGE_KEY);
-      localStorage.removeItem(RESEARCH_STORAGE_KEY);
-    } catch {
-      // ignore
-    }
-
-    setTokens(starterTokens);
-    setResearchByTokenId({});
-    setSelectedTokenId(null);
-    setSearchQuery("");
-    setView("list");
-  }
-
   const savedOutput = selectedToken ? (researchByTokenId[selectedToken.id] || "") : "";
 
-  // 5) Return last
+  // Week 5 required useEffect
+  // External sync: keep localStorage updated when saved research changes
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(researchByTokenId));
+    } catch {
+      // Ignore storage errors for now
+    }
+  }, [researchByTokenId]);
+
   return (
     <div className="app-container">
       <div className="app-shell">
         <div className="main-column">
-          <div className="row">
-            <div>
-              <h1>Token Research Explorer</h1>
-              <p>A lightweight research dashboard for a college blockchain group.</p>
-            </div>
-
-            <div className="row">
-              <button onClick={() => setView("new")}>New Token</button>
-              <button onClick={resetDemoData}>Reset</button>
-            </div>
-          </div>
-
-          {view === "new" && (
-            <NewTokenForm
-              onSave={addToken}
-              onCancel={() => setView("list")}
-            />
-          )}
+          <h1>Token Research Explorer</h1>
+          <p>A lightweight research dashboard for a college blockchain group.</p>
 
           {view === "list" && (
-            <TokenList
+            <TokenListView
               tokens={filteredTokens}
               searchQuery={searchQuery}
               setSearchQuery={setSearchQuery}
@@ -222,7 +149,7 @@ function App() {
           )}
 
           {view === "detail" && selectedToken && (
-            <TokenDetail
+            <TokenDetailView
               token={selectedToken}
               onBack={() => {
                 setSelectedTokenId(null);
@@ -230,13 +157,6 @@ function App() {
               }}
               onToggleChecklist={toggleChecklist}
             />
-          )}
-
-          {view === "detail" && !selectedToken && (
-            <div className="card section">
-              <p className="muted">No token selected. Go back to the list.</p>
-              <button onClick={() => setView("list")}>Back to List</button>
-            </div>
           )}
         </div>
 
