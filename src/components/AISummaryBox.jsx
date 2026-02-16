@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function buildDeepResearchPrompt(tokenName) {
   const cleanName = (tokenName || "Unknown").replace(/^\$/g, "");
-
   return `Deep Research Pitch Scaffold Prompt (Bull + Bear)
 You are a crypto public-markets research analyst writing a decision-ready pitch scaffold for ${cleanName}. Produce a bullish and bearish take, grounded in verifiable evidence.
 
@@ -20,79 +19,35 @@ Output Format (use these exact section titles) and output this info
 Identify the closest competitors (direct and adjacent) and define the category ${cleanName} is competing in.
 State the core differentiation in one sentence for the bull case.
 State the strongest “commoditization” argument in one sentence for the bear case.
-Provide a small comparison table with 5–8 rows of criteria (examples: product scope, trust model, key risks, revenue source, distribution, moat, switching costs, regulatory exposure).
+Provide a small comparison table with 5–8 rows of criteria.
 
 2) Growth: Past and Future
 Past growth (facts only)
-Provide 6–10 concrete metrics with dates, such as users, TVL, volume, fees, revenue, active addresses, integrations, liquidity depth, and retention proxies.
-Highlight 2–3 inflection points that explain the trajectory.
+Provide 6–10 concrete metrics with dates.
 Future growth (scenarios)
-Write a bull growth path with 3–6 drivers that must be true.
-Write a bear growth path with 3–6 drivers that would stall adoption.
-List 5 leading indicators to monitor weekly or monthly.
+Write a bull growth path with 3–6 drivers.
+Write a bear growth path with 3–6 drivers.
+List 5 leading indicators.
 
 3) Threats
-List 8–12 threats across categories: technical, market structure, governance, regulatory, liquidity, reflexivity, competition, and operational risk.
-For each threat, include: likelihood (Low/Medium/High), severity (Low/Medium/High), and the earliest observable warning signal.
+List 8–12 threats with likelihood, severity, and earliest warning signal.
 
 4) Token Value Accrual Chain
-Follow the chain exactly, in order, and keep it tightly argued.
-4A) Token Value Accrual Mechanism
-Explain, step-by-step, how value is created in the system and where it can flow.
-Identify which actors pay (users, LPs, integrators, traders, validators, borrowers, etc.).
-Identify which sink(s) exist (burns, buybacks, staking demand, required collateral, fee capture, governance rents, emissions with lockups).
-
-4B) Token Value Accrual Rights
-Enumerate the explicit rights the token has today (fee share, governance, staking yield, collateral utility, access, protocol-owned liquidity hooks, etc.).
-Separate “live today” vs “proposed / roadmap” vs “speculated.”
-Call out any dependencies (governance vote, legal constraints, off-chain entities, admin keys, parameter risks).
-
-4C) Fundamental Differentiation
-State the moat claim for the bull case in 3–6 bullets.
-State the best rebuttal for the bear case in 3–6 bullets.
-Include evidence for both.
-
+4A) Mechanism
+4B) Rights
+4C) Differentiation
 4D) Current Token Value
-Provide current market cap, FDV, circulating supply, total supply, major venues/liquidity, and a short liquidity read (depth, concentration, major holders if known).
-Summarize market-implied expectations in 3–5 bullets (what price appears to be pricing in).
-
-4E) Direct Catalysts for Token Value Accrual
-List 6–12 catalysts that directly change token value accrual (not generic hype), such as fee switch proposals, launch of a core module, integrations that expand fee base, emissions changes, burns, buybacks, collateral adoption, listings that change liquidity, or regulatory clarity.
-For each catalyst: expected date window (if known), mechanism impact, and falsifiable success criteria.
-
-4F) Vesting Schedules, Allocation Charts, and Current Expenditures in Native Token
-Provide an allocation breakdown with dates and cliffs, including investor/team/foundation/ecosystem/liquidity categories.
-Highlight supply-expansion risk windows over the next 3–12 months.
-Describe treasury flows and recurring expenditures funded in the native token (incentives, grants, market making, contributors), with numbers where available.
-REALLY FOCUS ON DESCRIBING THE INCENTIVE PROGRAM
-Include a simple “supply overhang” summary that identifies the largest unlock months.
-
-4G) Light Multiple Valuation
-Pick 2–4 relevant valuation lenses, based on what ${cleanName} actually is, such as FDV/fees, MC/TVL, FDV/revenue, PS-like proxy, or security-budget comparisons.
-Create a comps set of 5–10 comparable assets and show the multiples in a table.
-Provide a bull multiple and bear multiple, with a one-sentence justification each.
-Output a rough implied range for price or market cap under bull and bear, showing your math clearly.
-
+4E) Catalysts
+4F) Vesting and incentives
+4G) Light multiple valuation
 4H) Roadmap
-List 6–12 roadmap items that matter for adoption or value accrual.
-Label each item as “Execution Risk: Low/Medium/High.”
-Highlight the 2–3 roadmap items that would most change the bull/bear debate.
-
 4I) Trade
-Provide a clear trade expression: spot, structured entry, or “wait” recommendation.
-Include invalidation levels (what would make the thesis wrong).
-Provide a bull case, base case, and bear case outcome frame with rough probabilities that sum to 100%.
-List the top 5 things to monitor post-entry.
 
 Required Closing Artifacts
 A) Bull Thesis (10 bullets)
-Each bullet must be a complete sentence and must reference a concrete mechanism or metric.
 B) Bear Thesis (10 bullets)
-Each bullet must be a complete sentence and must reference a concrete mechanism or metric.
 C) Key Unknowns (5–10 bullets)
-Each bullet must state what is unknown and the exact source that would verify it.
-D) Source List
-Provide a clean list of sources grouped by: Official, On-chain/Data, Third-party Research, and News.`;
+D) Source List grouped by Official, On-chain/Data, Third-party Research, News.`;
 }
 
 function AISummaryBox({ token, savedOutput, onSaveOutput }) {
@@ -106,7 +61,8 @@ function AISummaryBox({ token, savedOutput, onSaveOutput }) {
     return buildDeepResearchPrompt(tokenName);
   }, [tokenName]);
 
-  useMemo(() => {
+  // Keep the text area synced when switching tokens or when saved output changes
+  useEffect(() => {
     setDraftOutput(savedOutput || "");
   }, [savedOutput, token?.id]);
 
@@ -136,9 +92,7 @@ function AISummaryBox({ token, savedOutput, onSaveOutput }) {
     <div className="ai-panel card">
       <div className="ai-panel-header">
         <div>
-          <div className="ai-title">
-            {token ? `${token.name} Research` : "Research"}
-          </div>
+          <div className="ai-title">{token ? `${token.name} Research` : "Research"}</div>
           <div className="muted">
             Copy the prompt, run it, paste the answer, and save it per token.
           </div>
@@ -152,7 +106,6 @@ function AISummaryBox({ token, savedOutput, onSaveOutput }) {
         >
           AI Output
         </button>
-
         <button
           className={activeTab === "prompt" ? "ai-tab ai-tab-active" : "ai-tab"}
           onClick={() => setActiveTab("prompt")}
@@ -163,14 +116,6 @@ function AISummaryBox({ token, savedOutput, onSaveOutput }) {
 
       {activeTab === "output" && (
         <>
-          {!token && (
-            <div className="card section">
-              <div className="muted">
-                Select a token to save research output.
-              </div>
-            </div>
-          )}
-
           <div className="ai-actions">
             <button onClick={save} disabled={!token}>Save</button>
             <button onClick={clear} disabled={!token}>Clear</button>
@@ -194,12 +139,7 @@ function AISummaryBox({ token, savedOutput, onSaveOutput }) {
             </button>
           </div>
 
-          <textarea
-            className="ai-textarea"
-            value={promptText}
-            readOnly
-            spellCheck={false}
-          />
+          <textarea className="ai-textarea" value={promptText} readOnly spellCheck={false} />
         </>
       )}
     </div>

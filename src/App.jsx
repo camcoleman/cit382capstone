@@ -3,7 +3,6 @@ import AISummaryBox from "./components/AISummaryBox";
 import TokenListView from "./components/TokenListView";
 import TokenDetailView from "./components/TokenDetailView";
 
-
 const starterTokens = [
   {
     id: 1,
@@ -46,10 +45,10 @@ const starterTokens = [
       "Early stage governance and centralization concerns"
     ],
     keyMetrics: {
-      fdv: 0,
-      mcap: 0,
-      tvl: 0,
-      volume24h: 0
+      fdv: 12101012,
+      mcap: 10220112,
+      tvl: 7500012,
+      volume24h: 570003
     },
     checklist: [
       { id: "avs", label: "Map the AVS landscape", done: false },
@@ -79,8 +78,29 @@ function App() {
   const [selectedTokenId, setSelectedTokenId] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Shared state: saved AI output per token id
-  const [researchByTokenId, setResearchByTokenId] = useState(() => safeLoadFromStorage());
+  function addToken(tokenData) {
+    const newToken = {
+      id: Date.now(),
+      ...tokenData,
+      thesis: [],
+      risks: [],
+      keyMetrics: {
+        fdv: 0,
+        mcap: 0,
+        tvl: 0,
+        volume24h: 0
+      },
+      checklist: []
+    };
+  
+    setTokens(prev => [...prev, newToken]);
+  }
+  
+  
+  
+  const [researchByTokenId, setResearchByTokenId] = useState(() =>
+    safeLoadFromStorage()
+  );
 
   const selectedToken = useMemo(() => {
     return tokens.find(t => t.id === selectedTokenId) || null;
@@ -117,17 +137,31 @@ function App() {
     }));
   }
 
-  const savedOutput = selectedToken ? (researchByTokenId[selectedToken.id] || "") : "";
+  const savedOutput = selectedToken
+    ? researchByTokenId[selectedToken.id] || ""
+    : "";
 
-  // Week 5 required useEffect
-  // External sync: keep localStorage updated when saved research changes
+  // Effect 1: external sync to localStorage (persistence)
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(researchByTokenId));
     } catch {
-      // Ignore storage errors for now
+      // ignore
     }
   }, [researchByTokenId]);
+
+  // Effect 2: external sync to document title (very visible in demo)
+  useEffect(() => {
+    if (view === "list") {
+      document.title = "Token Research Explorer";
+      return;
+    }
+    if (view === "detail" && selectedToken) {
+      document.title = `${selectedToken.name} Research`;
+      return;
+    }
+    document.title = "Token Research Explorer";
+  }, [view, selectedToken]);
 
   return (
     <div className="app-container">
@@ -145,6 +179,7 @@ function App() {
                 setSelectedTokenId(id);
                 setView("detail");
               }}
+              onAddToken={addToken}
             />
           )}
 

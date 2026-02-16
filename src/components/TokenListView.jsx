@@ -1,13 +1,24 @@
+import AddTokenForm from "./AddTokenForm";
 import TokenList from "./TokenList";
 
-function TokenListView({ tokens, searchQuery, setSearchQuery, onSelectToken }) {
+function TokenListView({
+  tokens,
+  searchQuery,
+  setSearchQuery,
+  onSelectToken,
+  onAddToken
+}) {
   return (
-    <TokenList
-      tokens={tokens}
-      searchQuery={searchQuery}
-      setSearchQuery={setSearchQuery}
-      onSelectToken={onSelectToken}
-    />
+    <div>
+      <AddTokenForm onAddToken={onAddToken} />
+
+      <TokenList
+        tokens={tokens}
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        onSelectToken={onSelectToken}
+      />
+    </div>
   );
 }
 
